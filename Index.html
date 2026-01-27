@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pixels</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: white;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    canvas {
+      background: #111;
+      touch-action: none;
+    }
+
+    #instructions {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .box {
+      border: 2px solid white;
+      padding: 20px;
+      text-align: center;
+      max-width: 300px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px;
+      background: black;
+      color: white;
+      border: 2px solid white;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="instructions">
+  <div class="box">
+    <h2>PIXELS</h2>
+    <p>Swipe to move the pixel</p>
+    <p>Up • Down • Left • Right</p>
+    <button id="startBtn">START</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  let player = { x: 190, y: 190, size: 20 };
+  let startX = 0;
+  let startY = 0;
+  let started = false;
+
+  document.getElementById("startBtn").onclick = () => {
+    document.getElementById("instructions").style.display = "none";
+    started = true;
+  };
+
+  canvas.addEventListener("touchstart", e => {
+    if (!started) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  });
+
+  canvas.addEventListener("touchend", e => {
+    if (!started) return;
+
+    let endX = e.changedTouches[0].clientX;
+    let endY = e.changedTouches[0].clientY;
+
+    let dx = endX - startX;
+    let dy = endY - startY;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0) player.x += 30; // right
+      else player.x -= 30;        // left
+    } else {
+      if (dy > 0) player.y += 30; // down
+      else player.y -= 30;        // up
+    }
+
+    // Keep inside the screen
+    player.x = Math.max(0, Math.min(player.x, canvas.width - player.size));
+    player.y = Math.max(0, Math.min(player.y, canvas.height - player.size));
+  });
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "lime";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+  }
+
+  function loop() {
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+
+</body>
+</html>
