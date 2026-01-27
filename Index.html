@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pixels</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      background: #111;
+      touch-action: none;
+    }
+
+    #instructions {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .box {
+      border: 2px solid white;
+      padding: 20px;
+      text-align: center;
+      max-width: 300px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px;
+      background: black;
+      color: white;
+      border: 2px solid white;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="instructions">
+  <div class="box">
+    <h2>PIXELS</h2>
+    <p>Swipe LEFT / RIGHT to move</p>
+    <p>Swipe UP to jump</p>
+    <button id="startBtn">START</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  const groundY = 340;
+
+  let player = {
+    x: 190,
+    y: groundY - 20,
+    size: 20,
+    vx: 0,
+    vy: 0,
+    speed: 0.5,
+    jumpPower: -10,
+    onGround: true
+  };
+
+  const gravity = 0.5;
+  const friction = 0.9;
+
+  let startX = 0;
+  let startY = 0;
+  let started = false;
+
+  document.getElementById("startBtn").onclick = () => {
+    document.getElementById("instructions").style.display = "none";
+    started = true;
+  };
+
+  canvas.addEventListener("touchstart", e => {
+    if (!started) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  });
+
+  canvas.addEventListener("touchend", e => {
+    if (!started) return;
+
+    let endX = e.changedTouches[0].clientX;
+    let endY = e.changedTouches[0].clientY;
+
+    let dx = endX - startX;
+    let dy = endY - startY;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal swipe
+      if (dx > 0) player.vx += 6;
+      else player.vx -= 6;
+    } else {
+      // Vertical swipe
+      if (dy < -30 && player.onGround) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+      }
+    }
+  });
+
+  function update() {
+    // Gravity
+    player.vy += gravity;
+
+    // Move
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // Ground collision
+    if (player.y + player.size >= groundY) {
+      player.y = groundY - player.size;
+      player.vy = 0;
+      player.onGround = true;
+    }
+
+    // Friction
+    player.vx *= friction;
+
+    // Walls
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.size > canvas.width)
+      player.x = canvas.width - player.size;
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Ground
+    ctx.fillStyle = "#444";
+    ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+
+    // Player
+    ctx.fillStyle = "lime";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+
+</body>
+</html>
