@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pixels</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      background: #111;
+    }
+
+    /* Instruction overlay */
+    #instructions {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .box {
+      border: 2px solid white;
+      padding: 20px;
+      text-align: center;
+      max-width: 300px;
+    }
+    .close {
+      margin-top: 15px;
+      border: 2px solid white;
+      padding: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="instructions">
+  <div class="box">
+    <h2>PIXELS</h2>
+    <p>Use <b>W A S D</b> to move</p>
+    <p>Move the green pixel around</p>
+    <div class="close" id="closeBtn">X</div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  let player = { x: 190, y: 190, size: 20, speed: 4 };
+  let keys = {};
+  let gameStarted = false;
+
+  document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+  document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+  document.getElementById("closeBtn").onclick = () => {
+    document.getElementById("instructions").style.display = "none";
+    gameStarted = true;
+  };
+
+  function update() {
+    if(!gameStarted) return;
+
+    if(keys["w"]) player.y -= player.speed;
+    if(keys["s"]) player.y += player.speed;
+    if(keys["a"]) player.x -= player.speed;
+    if(keys["d"]) player.x += player.speed;
+
+    if(player.x < 0) player.x = 0;
+    if(player.y < 0) player.y = 0;
+    if(player.x + player.size > canvas.width) player.x = canvas.width - player.size;
+    if(player.y + player.size > canvas.height) player.y = canvas.height - player.size;
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "lime";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+
+</body>
+</html>
