@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIXELS CUSTOM</title>
+<style>
+body {margin:0; background:black; font-family:Arial, sans-serif; overflow:hidden; display:flex; justify-content:center; align-items:center; height:100vh;}
+canvas {border:3px solid white; background:#000; display:none; touch-action:none;}
+#intro, #shopScreen, #winScreen {position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; color:lime; text-align:center; z-index:10;}
+#intro h1, #winScreen h1, #shopScreen h1 {font-size:48px; margin:0;}
+#intro p, #winScreen p, #shopScreen p {font-size:24px; margin-top:20px; color:white;}
+.button {width:60px;height:60px;background:green;margin:10px;cursor:pointer;display:flex;justify-content:center;align-items:center;color:black;font-weight:bold;}
+.skin {width:40px;height:40px;margin:5px;border:2px solid white;cursor:pointer;display:flex;justify-content:center;align-items:center;}
+#brushColor {width:30px;height:30px;margin:5px;border:2px solid white;cursor:pointer;}
+#shopContainer {display:flex;flex-wrap:wrap;justify-content:center;align-items:center;margin-top:20px;}
+</style>
+</head>
+<body>
+
+<div id="intro">
+<h1>PIXELS</h1>
+<div class="button" id="startBtn">Start</div>
+<div class="button" id="shopBtn">Shop</div>
+<p>Earn 10 keys per completed game</p>
+</div>
+
+<div id="shopScreen" style="display:none;">
+<h1>SHOP</h1>
+<p>Click skin to select</p>
+<div id="shopContainer"></div>
+<div class="button" id="backBtn">Back</div>
+</div>
+
+<div id="winScreen" style="display:none;">
+<h1>YOU WIN!</h1>
+<p>Click to Continue</p>
+</div>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<script>
+const intro = document.getElementById("intro");
+const shopScreen = document.getElementById("shopScreen");
+const winScreen = document.getElementById("winScreen");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let keys = 0;
+let currentSkin = {color:'lime', eyes:true}; // default skin
+let skins = [
+  {color:'lime', eyes:true}, {color:'red', eyes:false}, {color:'blue', eyes:true},
+  {color:'orange', eyes:false}, {color:'purple', eyes:true}, {color:'pink', eyes:true},
+  {color:'cyan', eyes:false}, {color:'yellow', eyes:true}, {color:'white', eyes:true},
+  {color:'brown', eyes:false}
+];
+
+// Player/Game
+const groundY = 300;
+const gravity = 0.6;
+let player = {x:20, y:groundY-20, size:20, vx:0, vy:0, onGround:true};
+let gameStarted=false;
+let currentLayout=0;
+
+// Layouts (spike-safe)
+const layouts = [
+  { spikes:[{x:120,width:20},{x:300,width:20}], trees:[{x:30,y:groundY-60,w:20,h:60},{x:320,y:groundY-70,w:20,h:70}] },
+  { spikes:[{x:130,width:20},{x:250,width:20}], trees:[{x:60,y:groundY-50,w:20,h:50},{x:280,y:groundY-80,w:20,h:80}] },
+  { spikes:[{x:140,width:20},{x:300,width:20}], trees:[{x:50,y:groundY-70,w:20,h:70},{x:310,y:groundY-60,w:20,h:60}] },
+  { spikes:[{x:150,width:20},{x:200,width:20}], trees:[{x:10,y:groundY-60,w:20,h:60},{x:250,y:groundY-70,w:20,h:70}] },
+  { spikes:[{x:160,width:20},{x:330,width:20}], trees:[{x:140,y:groundY-80,w:20,h:80},{x:330,y:groundY-60,w:20,h:60}] },
+  { spikes:[{x:120,width:20},{x:280,width:20}], trees:[{x:90,y:groundY-50,w:20,h:50},{x:270,y:groundY-80,w:20,h:80}] }
+];
+let spikes = layouts[0].spikes;
+let trees = layouts[0].trees;
+
+// Start/Shop buttons
+document.getElementById("startBtn").addEventListener("click", ()=>{intro.style.display='none'; canvas.style.display='block'; gameStarted=true;});
+document.getElementById("shopBtn").addEventListener("click", ()=>{intro.style.display='none'; shopScreen.style.display='flex'; loadShop();});
+document.getElementById("backBtn").addEventListener("click", ()=>{shopScreen.style.display='none'; intro.style.display='flex';});
+
+// Win screen click
+winScreen.addEventListener("click", ()=>{
+  winScreen.style.display="none";
+  currentLayout=0;
+  resetCycle();
+});
+
+// Shop
+const shopContainer = document.getElementById("shopContainer");
+function loadShop(){
+  shopContainer.innerHTML="";
+  skins.forEach((s,i)=>{
+    const div = document.createElement("div");
+    div.className="skin";
+    div.style.background=s.color;
+    div.innerHTML = s.eyes?"👀":"";
+    div.addEventListener("click", ()=>{
+      currentSkin = {...s};
+      alert("Skin selected!");
+    });
+    shopContainer.appendChild(div);
+  });
+}
+
+// Swipe controls
+let startX=0,startY=0;
+canvas.addEventListener("touchstart", e=>{startX=e.touches[0].clientX; startY=e.touches[0].clientY;});
+canvas.addEventListener("touchend", e=>{
+  let dx=e.changedTouches[0].clientX-startX;
+  let dy=e.changedTouches[0].clientY-startY;
+  if(dy<-30 && player.onGround){player.vy=-12;player.onGround=false; if(Math.abs(dx)>20) player.vx+=dx>0?6:-6;}
+  else if(Math.abs(dx)>Math.abs(dy)){player.vx+=dx>0?4:-4;}
+});
+
+// Update
+function update(){
+  if(!gameStarted) return;
+  player.vy += gravity;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Pit
+  const pitX=180, pitWidth=60;
+  if(player.x+player.size>pitX && player.x<pitX+pitWidth && player.y+player.size>=groundY){
+    resetCycle();
+    return;
+  }
+
+  // Spikes
+  for(let s of spikes){if(player.x+player.size>s.x && player.x<s.x+s.width && player.y+player.size>=groundY-10){resetCycle();return;}}
+
+  // Ground
+  if(player.y+player.size>=groundY){player.y=groundY-player.size;player.vy=0;player.onGround=true;}
+
+  // Wall wrap
+  if(player.x+player.size<0 || player.x>canvas.width){
+    currentLayout++;
+    if(currentLayout>=6){
+      keys+=10; // earn 10 keys per cycle
+      winScreen.style.display="flex"; canvas.style.display="none"; return;
+    }
+    player.x=20; player.vy=-12;
+    spikes=layouts[currentLayout].spikes;
+    trees=layouts[currentLayout].trees;
+  }
+  player.vx*=0.9;
+}
+
+// Draw
+function draw(){
+  if(!gameStarted) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#888"; ctx.fillRect(0,groundY,canvas.width,canvas.height-groundY);
+  ctx.fillStyle="black"; ctx.fillRect(180,groundY,60,canvas.height-groundY);
+
+  // Trees
+  ctx.fillStyle="green";
+  for(let t of trees){ctx.fillRect(t.x,t.y,t.w,t.h);}
+
+  // Spikes
+  ctx.fillStyle="red";
+  for(let s of spikes){ctx.beginPath();ctx.moveTo(s.x, groundY);ctx.lineTo(s.x+s.width/2, groundY-20);ctx.lineTo(s.x+s.width, groundY);ctx.closePath();ctx.fill();}
+
+  // Player
+  ctx.fillStyle=currentSkin.color;
+  ctx.fillRect(player.x,player.y,player.size,player.size);
+  if(currentSkin.eyes){
+    ctx.fillStyle="white"; ctx.fillRect(player.x+4,player.y+4,4,4); ctx.fillRect(player.x+12,player.y+4,4,4);
+  }
+}
+
+// Loop
+function loop(){update(); draw(); requestAnimationFrame(loop);}
+function resetCycle(){player.x=20;player.y=groundY-20;player.vx=0;player.vy=0;player.onGround=true;currentLayout=0;spikes=layouts[0].spikes;trees=layouts[0].trees;}
+loop();
+</script>
+
+</body>
+</html>
