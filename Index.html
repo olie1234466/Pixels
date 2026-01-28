@@ -1,225 +1,161 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PIXELS</title>
+<meta charset="UTF-8">
+<title>COLOR DASH</title>
 <style>
-body{margin:0;background:black}
-canvas{display:block;margin:auto;border:3px solid white}
+body{
+  margin:0;
+  background:#000;
+  color:white;
+  font-family:monospace;
+  text-align:center;
+}
+canvas{
+  display:block;
+  margin:auto;
+  background:linear-gradient(180deg,#ff00cc,#3333ff);
+}
+#overlay{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  background:rgba(0,0,0,0.6);
+}
+button{
+  font-size:20px;
+  padding:12px 20px;
+  margin-top:10px;
+}
 </style>
 </head>
 <body>
 
-<canvas id="game" width="420" height="420"></canvas>
+<div id="overlay">
+  <h1 style="color:#00ffff">COLOR DASH</h1>
+  <p>🎵 Music ON</p>
+  <p>Tap or Click to Jump</p>
+  <p>Dodge the blocks</p>
+  <button onclick="startGame()">START</button>
+</div>
+
+<canvas id="game" width="360" height="200"></canvas>
+
+<audio id="music" loop>
+  <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5c0c7e4a0c.mp3?filename=dreams-110734.mp3">
+</audio>
 
 <script>
-/* ================= SETUP ================= */
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+const overlay=document.getElementById("overlay");
+const music=document.getElementById("music");
 
-const GRAVITY=0.6;
-const GROUND=320;
+let playing=false;
+let score=0;
+let speed=3;
 
-/* ================= PLAYER ================= */
 const player={
- x:20,y:GROUND-20,w:20,h:20,
- vx:0,vy:0,onGround:true,
- lives:3,score:0,
- sword:false
+  x:40,y:140,w:20,h:20,vy:0
 };
 
-/* ================= WEAPONS ================= */
-let weapon="normal";
-const weapons={
- normal:{range:12,damage:1},
- long:{range:22,damage:1},
- fire:{range:16,damage:2}
-};
+let blocks=[];
 
-/* ================= TERRAIN ================= */
-const terrainColors={
- grass:{bg:"#003300",ground:"#555"},
- desert:{bg:"#c2b280",ground:"#aa8844"},
- lava:{bg:"#330000",ground:"#661111"},
- ice:{bg:"#88ccff",ground:"#99ddff"}
-};
-
-/* ================= LEVELS ================= */
-const levels=[
- {terrain:"grass",spikes:[140],monsters:[{x:240,y:GROUND-20,type:"walker"}]},
- {terrain:"grass",spikes:[200],monsters:[]},
- {terrain:"grass",spikes:[120,280],monsters:[{x:200,y:GROUND-20,type:"walker"}]},
- {terrain:"desert",spikes:[150],monsters:[{x:260,y:GROUND-20,type:"walker"}]},
- {terrain:"desert",spikes:[100,300],monsters:[{x:220,y:GROUND-60,type:"flyer"}]},
- {terrain:"desert",spikes:[200],monsters:[]},
- {terrain:"lava",spikes:[130,260],monsters:[{x:210,y:GROUND-20,type:"walker"}]},
- {terrain:"lava",spikes:[170],monsters:[{x:260,y:GROUND-60,type:"flyer"}]},
- {terrain:"lava",spikes:[120,300],monsters:[]},
- {terrain:"ice",spikes:[140],monsters:[{x:260,y:GROUND-20,type:"walker"}]},
- {terrain:"ice",spikes:[100,280],monsters:[{x:200,y:GROUND-60,type:"flyer"}]},
- {terrain:"ice",spikes:[],monsters:[]} // boss level
-];
-
-let levelIndex=0;
-let level=levels[levelIndex];
-
-/* ================= BOSS ================= */
-let boss=null;
-function spawnBoss(){
- boss={x:260,y:GROUND-80,w:60,h:60,hp:10,dir:-1,shots:[]};
-}
-
-/* ================= INPUT ================= */
-let sx=0,sy=0;
-canvas.addEventListener("touchstart",e=>{
- sx=e.touches[0].clientX;
- sy=e.touches[0].clientY;
- player.sword=true;
-});
-canvas.addEventListener("touchend",e=>{
- let dx=e.changedTouches[0].clientX-sx;
- let dy=e.changedTouches[0].clientY-sy;
- if(dy<-30 && player.onGround){player.vy=-12;player.onGround=false;}
- if(dx>30)player.vx=5;
- if(dx<-30)player.vx=-5;
- setTimeout(()=>player.sword=false,150);
-});
-
-/* ================= SHOP ================= */
-canvas.addEventListener("dblclick",()=>{
- let c=prompt(
-`SHOP
-1 Normal Sword
-2 Long Sword (level 4+)
-3 Fire Sword (level 8+)`);
- if(c==="1")weapon="normal";
- if(c==="2"&&levelIndex>=3)weapon="long";
- if(c==="3"&&levelIndex>=7)weapon="fire";
-});
-
-/* ================= GAME ================= */
-function loseLife(){
- player.lives--;
- reset();
- if(player.lives<=0){
-  alert("YOU LOSE\nScore: "+player.score);
-  player.lives=3;player.score=0;
-  levelIndex=0;level=levels[0];
- }
+function startGame(){
+  overlay.style.display="none";
+  music.volume=0.5;
+  music.play();
+  reset();
+  playing=true;
 }
 
 function reset(){
- player.x=20;player.y=GROUND-20;
- player.vx=0;player.vy=0;
- player.onGround=true;
+  score=0;
+  speed=3;
+  player.y=140;
+  player.vy=0;
+  blocks=[];
 }
 
-function hit(a,b){
- return a.x<a.x+b.w&&a.x+a.w>b.x&&a.y<a.y+b.h&&a.y+a.h>b.y;
+function jump(){
+  if(player.y>=140) player.vy=-8;
+}
+
+document.addEventListener("click",jump);
+document.addEventListener("touchstart",jump);
+
+function spawnBlock(){
+  blocks.push({
+    x:360,
+    y:140,
+    w:20,
+    h:20,
+    color:`hsl(${Math.random()*360},100%,60%)`
+  });
 }
 
 function update(){
- player.vy+=GRAVITY;
- player.x+=player.vx;
- player.y+=player.vy;
+  if(!playing) return;
 
- if(player.y+player.h>=GROUND){
-  player.y=GROUND-player.h;
-  player.vy=0;player.onGround=true;
- }
+  player.vy+=0.5;
+  player.y+=player.vy;
+  if(player.y>140){player.y=140;player.vy=0;}
 
- // spikes
- level.spikes.forEach(s=>{
-  if(player.x+player.w>s&&player.x<s+20&&player.y+player.h>=GROUND)
-   loseLife();
-  if(player.x>s+20&&!s.done){player.score+=50;s.done=true;}
- });
+  if(Math.random()<0.02) spawnBlock();
 
- // monsters
- level.monsters.forEach(m=>{
-  if(m.type==="walker")m.x+=Math.sin(Date.now()/300)*0.5;
-  if(m.type==="flyer")m.y+=Math.sin(Date.now()/200)*0.6;
-  if(hit(player,m)){
-   if(player.sword){m.dead=true;player.score+=100;}
-   else loseLife();
-  }
- });
- level.monsters=level.monsters.filter(m=>!m.dead);
+  blocks.forEach(b=>{
+    b.x-=speed;
+    if(
+      player.x<b.x+b.w &&
+      player.x+player.w>b.x &&
+      player.y<b.y+b.h &&
+      player.y+player.h>b.y
+    ){
+      gameOver();
+    }
+    if(!b.passed && b.x+b.w<player.x){
+      b.passed=true;
+      score+=10;
+      speed+=0.02;
+    }
+  });
 
- // boss
- if(levelIndex===11){
-  if(!boss)spawnBoss();
-  boss.x+=boss.dir*1.5;
-  if(boss.x<150||boss.x>330)boss.dir*=-1;
-  if(player.sword){
-   let sword={x:player.x+20,y:player.y,w:weapons[weapon].range,h:player.h};
-   if(hit(sword,boss))boss.hp-=weapons[weapon].damage;
-  }
-  if(boss.hp<=0){
-   alert("YOU WIN!");
-   player.score+=500;
-   boss=null;
-   levelIndex=0;level=levels[0];
-  }
- }
+  blocks=blocks.filter(b=>b.x>-30);
+}
 
- // next level
- if(player.x>canvas.width){
-  player.score+=100;
-  levelIndex++;
-  if(levelIndex>=levels.length)levelIndex=0;
-  level=levels[levelIndex];
-  reset();
- }
-
- player.vx*=0.9;
+function gameOver(){
+  playing=false;
+  music.pause();
+  overlay.innerHTML=`
+    <h1 style="color:#ff4444">GAME OVER</h1>
+    <p>Score: ${score}</p>
+    <button onclick="location.reload()">RESTART</button>
+  `;
+  overlay.style.display="flex";
 }
 
 function draw(){
- const t=terrainColors[level.terrain];
- ctx.fillStyle=t.bg;ctx.fillRect(0,0,420,420);
- ctx.fillStyle=t.ground;ctx.fillRect(0,GROUND,420,100);
+  ctx.clearRect(0,0,360,200);
 
- // spikes
- ctx.fillStyle="red";
- level.spikes.forEach(s=>{
-  ctx.beginPath();
-  ctx.moveTo(s,GROUND);
-  ctx.lineTo(s+10,GROUND-20);
-  ctx.lineTo(s+20,GROUND);
-  ctx.fill();
- });
+  ctx.fillStyle="#00ffff";
+  ctx.fillRect(player.x,player.y,player.w,player.h);
 
- // monsters
- ctx.fillStyle="purple";
- level.monsters.forEach(m=>ctx.fillRect(m.x,m.y,20,20));
+  blocks.forEach(b=>{
+    ctx.fillStyle=b.color;
+    ctx.fillRect(b.x,b.y,b.w,b.h);
+  });
 
- // boss
- if(boss){
-  ctx.fillStyle="darkred";
-  ctx.fillRect(boss.x,boss.y,boss.w,boss.h);
   ctx.fillStyle="white";
-  ctx.fillText("Boss HP: "+boss.hp,150,30);
- }
-
- // player
- ctx.fillStyle="lime";
- ctx.fillRect(player.x,player.y,20,20);
-
- // sword
- if(player.sword){
-  ctx.fillStyle=weapon==="fire"?"orange":"white";
-  ctx.fillRect(player.x+20,player.y+8,weapons[weapon].range,4);
- }
-
- // HUD
- ctx.fillStyle="white";
- ctx.fillText("Score: "+player.score,10,20);
- ctx.fillText("Lives: "+player.lives,10,40);
+  ctx.fillText("Score: "+score,10,15);
 }
 
 function loop(){
- update();draw();requestAnimationFrame(loop);
+  update();
+  draw();
+  requestAnimationFrame(loop);
 }
 loop();
 </script>
